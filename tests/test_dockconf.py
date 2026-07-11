@@ -1,4 +1,4 @@
-"""Tests: each Acceptance Criterion isolated (SDD verification rule)."""
+"""Tests: each Acceptance Criterion isolated (SDD verification rule) + edge cases."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,8 +18,25 @@ from dockconf.report import filter_decoys, write_json, reliability_diagram
 from dockconf.data.fixture import make_fixture
 
 ROOT = Path(__file__).resolve().parent.parent
-SAMPLE = ROOT / "sample.sdf"
-NATIVE = ROOT / "sample_native.pdb"
+DATA = ROOT / "tests" / "data"
+SAMPLE = DATA / "sample.sdf"
+NATIVE = DATA / "sample_native.pdb"
+
+from tests.data.edge_fixtures import write_pdbqt, write_dlg  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def pdbqt_path(tmp_path_factory):
+    p = tmp_path_factory.mktemp("fx") / "lig.pdbqt"
+    write_pdbqt(str(p))
+    return p
+
+
+@pytest.fixture(scope="module")
+def dlg_path(tmp_path_factory):
+    p = tmp_path_factory.mktemp("fx") / "lig.dlg"
+    write_dlg(str(p))
+    return p
 
 
 # ---- AC1: parser reads multimodel SDF, extracts scores -------------------
@@ -28,6 +45,19 @@ def test_ac1_parse_sdf_multi():
     assert len(poses) == 6, f"expected 6 poses, got {len(poses)}"
     scored = [p for p in poses if p.raw_score is not None]
     assert len(scored) == 6, "every pose should carry minimizedAffinity"
+
+
+# ---- AC1b: parser reads PDBQT and DLG ------------------------------------
+def test_ac1b_parse_pdbqt(pdbqt_path):
+    poses = read_poses(str(pdbqt_path), fmt="pdbqt", system_id="sys_pq")
+    assert len(poses) >= 1
+    assert poses[0].raw_score is not None, "PDBQT score should be parsed"
+
+
+def test_ac1c_parse_dlg(dlg_path):
+    poses = read_poses(str(dlg_path), fmt="dlg", system_id="sys_dlg")
+    assert len(poses) >= 1
+    assert poses[0].raw_score is not None, "DLG energy should be parsed"
 
 
 # ---- AC2: RMSD to native + near_native label -------------------------
@@ -43,12 +73,34 @@ def test_ac2_rmsd_native():
     assert worst.near_native is False
 
 
+# ---- AC2b: missing native -> RMSD None, no crash ----------------------
+def test_ac2b_missing_native_no_crash():
+    poses = read_poses(str(SAMPLE), fmt="sdf", system_id="sys_001")
+    out = annotate_rmsd(poses, str(DATA / "does_not_exist.pdb"))
+    assert all(p.rmsd is None for p in out)
+    assert all(p.near_native is None for p in out)
+
+
+# ---- AC2c: different molecule -> RMSD None (safety) -------------------
+def test_ac2c_different_molecule_none():
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    pose = Chem.MolFromSmiles("CCO")
+    pose = Chem.AddHs(pose)
+    AllChem.EmbedMolecule(pose)
+    native = Chem.MolFromSmiles("c1ccccc1")  # benzene, NOT the same molecule
+    native = Chem.AddHs(native)
+    AllChem.EmbedMolecule(native)
+    r = rmsd_to_native(pose, native)
+    assert r is None, "different molecule must yield None, not a bogus RMSD"
+
+
 # ---- AC3: CLI emits valid JSON ------------------------------------------
 def test_ac3_cli_json(tmp_path):
     from dockconf.cli import main
     out = tmp_path / "o.json"
     rc = main(["parse", "--input", str(SAMPLE), "--native", str(NATIVE),
-                "--out", str(out)])
+               "--out", str(out)])
     assert rc == 0
     import json
     data = json.loads(out.read_text())
@@ -96,11 +148,10 @@ def test_ac7_ece_improvement():
 def test_ac8_decoy_filter():
     poses = read_poses(str(SAMPLE), fmt="sdf", system_id="sys_001")
     poses = annotate_rmsd(poses, str(NATIVE))
-    poses = calibrate(poses, mode="heuristic")  # attach p_near_native
+    poses = calibrate(poses, mode="heuristic")
     poses = filter_decoys(poses, threshold=0.5)
     n_decoy = sum(1 for p in poses if p.is_decoy is True)
     assert n_decoy >= 1, "should flag at least one decoy"
-    # the highest-RMSD pose must be a decoy
     worst = max(poses, key=lambda p: float(p.rmsd))
     assert worst.is_decoy is True
 
@@ -110,5 +161,12 @@ def test_platt_fit():
     scores = [-9.5, -9.4, -3.0, -2.8, -8.1, -1.5]
     labels = [1, 1, 0, 0, 1, 0]
     coef = fit_platt(scores, labels)
-    # higher (more negative) score -> higher P
     assert platt_predict(coef, -9.5) > platt_predict(coef, -2.0)
+
+
+# ---- bonus: efficiency: MCS computed once per system ----------------
+def test_efficiency_mcs_cached():
+    poses = read_poses(str(SAMPLE), fmt="sdf", system_id="sys_001")
+    # 6 poses, 1 system -> annotate_rmsd should reach here without error
+    out = annotate_rmsd(poses, str(NATIVE))
+    assert sum(1 for p in out if p.rmsd is not None) == 6

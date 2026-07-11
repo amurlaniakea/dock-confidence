@@ -106,15 +106,15 @@ def read_pdbqt(path: str, system_id: Optional[str] = None) -> list[Pose]:
 
 
 def _pdbqt_score(block: list[str]) -> tuple[Optional[float], Optional[str]]:
-    """AutoDock PDBQT stores 'REMARK VINA RESULT: affinity, dist, ...'."""
+    """AutoDock/Vina PDBQT stores 'REMARK VINA RESULT: affinity ...'."""
     for line in block:
         if "VINA RESULT" in line or "REMARK VINA" in line:
-            parts = line.split()
-            # format: ... affinity (kcal/mol) dist1 dist2
-            try:
-                return float(parts[-3]), "pdbqt_score"
-            except (ValueError, IndexError):
-                pass
+            # grab the first float token (the affinity, kcal/mol)
+            for tok in line.replace(":", " ").split():
+                try:
+                    return float(tok), "pdbqt_score"
+                except ValueError:
+                    continue
     return None, None
 
 
@@ -129,14 +129,16 @@ def read_dlg(path: str, system_id: Optional[str] = None) -> list[Pose]:
     with open(path) as fh:
         for line in fh:
             if "RANKING" in line and "ESTIMATED" in line:
-                # RANKING 1  CLUSTER 1    -10.42
+                # RANKING 1  CLUSTER 1    -9.50       ESTIMATED AFFINITY
                 parts = line.split()
+                # affinity is the only float token before ESTIMATED
                 try:
-                    aff = float(parts[-1])
+                    aff = next(float(tok) for tok in reversed(parts)
+                               if tok.replace(".", "", 1).replace("-", "", 1).isdigit())
                     poses.append(Pose(system_id=str(sid), pose_id=pid,
                                      raw_score=aff, score_source="pdbqt_score"))
                     pid += 1
-                except ValueError:
+                except (ValueError, StopIteration):
                     pass
     return poses
 

@@ -12,13 +12,13 @@ __pycache__/
 build/
 dist/
 
-# Local artifacts / outputs
-*.json
-*.png
-*.pdb
-*.sdf
+# Local artifacts / OUTPUTS (user-generated, not source)
 out*
-sample*
+*.reliability.png
+*.json
+
+# Test fixtures ARE committed (small, deterministic) so CI needs no
+# external downloads. They live under tests/data/.
 
 # OS
 .DS_Store

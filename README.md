@@ -2,7 +2,8 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL_3.0-or_later-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
-![Tests](https://img.shields.io/badge/tests-9%2F9%20passing-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-14%2F14%20passing-brightgreen.svg)
+![CI](https://github.com/amurlaniakea/dock-confidence/actions/workflows/ci.yml/badge.svg)
 
 **Calibrated confidence for protein–ligand docking poses.**
 
@@ -14,6 +15,8 @@ Given a docked pose, it estimates a **calibrated probability
 P(RMSD < 2.0 Å)** that the pose is near-native, produces an
 uncertainty band, filters decoys, and emits a calibration report
 (ECE + reliability diagram) ready for scientific / regulatory validation.
+
+---
 
 ## Why this exists (the gap)
 
@@ -81,13 +84,94 @@ dock-confidence report --input poses.json --threshold 0.5
 ## Status
 
 MVP complete: parser (SDF/PDBQT/DLG) → RMSD (heavy-atom,
-MCS-aligned) → calibration (Platt / heuristic) → ECE + report.
-Validated on a controlled synthetic fixture (AC7: `ECE_calibrated
-0.080 < ECE_raw 0.368`). Real-dataset validation (CASF-2016,
-PDBbind v2016, PoseBusters, DockGen) is a documented next step
-requiring manual browser download — see `RESEARCH.md`.
+MCS-aligned, cached per system) → calibration (Platt / heuristic) →
+ECE + report. **14/14 tests pass.** Validated on a controlled synthetic
+fixture (AC7: `ECE_calibrated 0.080 < ECE_raw 0.368`). Real-dataset
+validation (CASF-2016, PDBbind v2016, PoseBusters, DockGen) is a
+documented next step requiring manual browser download — see `RESEARCH.md`.
 
 ## License
+
+AGPL-3.0-or-later © 2026 Pedro Sordo Martínez
+(amurlaniakea@gmail.com).
+
+---
+
+# dock-confidence (Español)
+
+**Confianza calibrada para poses de docking proteína–ligando.**
+
+`dock-confidence` es una capa de *verificación y calibración* sobre
+**cualquier** motor de docking (DiffDock, AutoDock, Smina, FlowDock).
+**No** genera poses — las *verifica y calibra*.
+
+Dada una pose dockada, estima una **probabilidad calibrada
+P(RMSD < 2.0 Å)** de que la pose sea nativa-cercana, produce una banda
+de incertidumbre, filtra decoys y emite un informe de calibración
+(ECE + diagrama de fiabilidad) listo para validación científica/regulatoria.
+
+## Por qué existe (el hueco)
+
+Las funciones de puntuación son el *"cuello de botella principal"* del
+docking: *"fallan rutinariamente en rankear poses nativa-cercanas por
+encima de decoys"* (AgenticPosesRanker, arXiv:2605.03707). ~49.4% de
+los 8.597 sistemas PDBbind presentan **fallos de puntuación**.
+
+DiffDock *sí* emite una confianza — pero su propio README dice que
+*"puede ser difícil de interpretar y comparar... [no] es una medida
+directa de la afinidad de unión"*. La puntuación **no está calibrada**
+ni es **comparable entre complejos**.
+
+**El hueco, cuantificado (GitHub):** `molecular-docking` → **183 repos**,
+pero `docking pose confidence RMSD calibration` → **0 repos**.
+Cero herramientas open-source resuelven la capa de confianza calibrada.
+
+`dock-confidence` democratiza lo que DockGen (arXiv:2402.18396) llama
+*Confidence Bootstrapping* — como herramienta OSS reutilizable que
+envuelve **cualquier** dock, sin reentrenar un modelo de difusión.
+
+## Instalación
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+## Inicio rápido
+
+```bash
+# 1. Parsea un SDF de DiffDock/Smina, calcula RMSD a un cristal nativo
+#    y calibra la confianza (fallback heurístico).
+dock-confidence parse --input poses.sdf --native crystal.pdb \
+    --calibrate-mode heuristic --out poses.json
+
+# 2. Valida en un dataset (fixture sintético integrado, o tu CASF-2016).
+dock-confidence validate --fixture --seed 42 --n-systems 20
+dock-confidence validate --fixture --mode platt --seed 42
+
+# 3. Filtra decoys + diagrama de fiabilidad.
+dock-confidence report --input poses.json --threshold 0.5
+```
+
+## Métricas
+
+* **ECE** — Error de Calibración Esperado (Guo et al. 2017). Menor es
+  mejor; la herramienta reporta `ECE(calibrado) < ECE(score crudo)`.
+* **Top-1 accuracy** — fracción de sistemas cuya pose de mayor-P es
+  realmente nativa-cercana (AgenticPosesRanker Eq.11).
+* **Diagrama de fiabilidad** — conf(B_b) vs acc(B_b); diagonal = perfecto.
+
+## Estado
+
+MVP completo: parser (SDF/PDBQT/DLG) → RMSD (heavy-atom, MCS-align,
+cacheado por sistema) → calibración (Platt / heurístico) → ECE + informe.
+**14/14 tests pasan.** Validado en fixture sintético controlado
+(AC7: `ECE_calibrado 0.080 < ECE_crudo 0.368`). La validación con
+dataset real (CASF-2016, PDBbind v2016, PoseBusters, DockGen) queda
+como siguiente paso documentado (requiere descarga manual vía navegador)
+— ver `RESEARCH.md`.
+
+## Licencia
 
 AGPL-3.0-or-later © 2026 Pedro Sordo Martínez
 (amurlaniakea@gmail.com).
