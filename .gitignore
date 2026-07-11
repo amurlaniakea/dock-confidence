@@ -1,0 +1,32 @@
+# dock-confidence — isolated repo .gitignore
+# AISLATED repo: lives INSIDE /home/sil tree but has its OWN .git.
+# Never let git operations escape to the parent /home/sil repo.
+
+# Python / venv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Local artifacts / outputs
+*.json
+*.png
+*.pdb
+*.sdf
+out*
+sample*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NEVER (belt-and-suspenders; parent repo owns these)
+.hermes/
+.gnupg/
+.aws/
+credentials/
+store.db
