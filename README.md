@@ -86,7 +86,8 @@ dock-confidence report --input poses.json --threshold 0.5
 MVP complete: parser (SDF/PDBQT/DLG) → RMSD (heavy-atom,
 MCS-aligned, cached per system) → calibration (Platt / heuristic) →
 ECE + report. **14/14 tests pass.** Validated on a controlled synthetic
-fixture (AC7: `ECE_calibrated 0.080 < ECE_raw 0.368`). Real-dataset
+fixture (AC7: `ECE_calibrated 0.109 < ECE_raw 0.386`, measured on a
+0-system-overlap holdout). Real-dataset
 validation (CASF-2016, PDBbind v2016, PoseBusters, DockGen) is a
 documented next step requiring manual browser download — see `RESEARCH.md`.
 
@@ -166,7 +167,8 @@ dock-confidence report --input poses.json --threshold 0.5
 MVP completo: parser (SDF/PDBQT/DLG) → RMSD (heavy-atom, MCS-align,
 cacheado por sistema) → calibración (Platt / heurístico) → ECE + informe.
 **14/14 tests pasan.** Validado en fixture sintético controlado
-(AC7: `ECE_calibrado 0.080 < ECE_crudo 0.368`). La validación con
+(AC7: `ECE_calibrado 0.109 < ECE_crudo 0.386`, medido sobre holdout
+de 0 overlap de sistemas). La validación con
 dataset real (CASF-2016, PDBbind v2016, PoseBusters, DockGen) queda
 como siguiente paso documentado (requiere descarga manual vía navegador)
 — ver `RESEARCH.md`.

@@ -95,6 +95,54 @@ def test_ac2c_different_molecule_none():
     assert r is None, "different molecule must yield None, not a bogus RMSD"
 
 
+# ---- AC2d: atom-order invariance of RMSD alignment --------------------
+def test_ac2d_atom_order_invariant(tmp_path):
+    """annotate_rmsd must be INVARIANT to the input ligand's atom
+    ordering. The same molecule presented with shuffled heavy-atom
+    indices must yield the same RMSD, proving the MCS alignment is
+    order-agnostic (not dependent on a fixed input atom indexing).
+    """
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    import random
+
+    nat = Chem.MolFromSmiles("CC(=O)Oc1ccccc1C(=O)O")
+    nat = Chem.AddHs(nat)
+    AllChem.EmbedMolecule(nat, randomSeed=42)
+    AllChem.MMFFOptimizeMolecule(nat)
+    # native as heavy-atom-only for a clean heavy-atom RMSD
+    native_heavy = Chem.RemoveHs(Chem.Mol(nat))
+    native_path = tmp_path / "native.sdf"
+    w = Chem.SDWriter(str(native_path))
+    w.write(native_heavy)
+    w.close()
+
+    # canonical-order pose = same molecule as the native
+    pa = Chem.Mol(native_heavy)
+    # reordered pose: shuffle heavy-atom indices only (same molecule)
+    heavy = [i for i in range(pa.GetNumAtoms())
+             if pa.GetAtomWithIdx(i).GetAtomicNum() > 1]
+    perm = heavy[:]
+    random.Random(7).shuffle(perm)
+    new_order = list(range(pa.GetNumAtoms()))
+    for old, new in zip(heavy, perm):
+        new_order[old] = new
+    pb = Chem.RenumberAtoms(pa, new_order)
+    assert pa.GetNumAtoms() == pb.GetNumAtoms()
+
+    from dockconf.parse import Pose
+    p1 = Pose(system_id="sys_can", pose_id=0, ligand_mol=pa,
+              raw_score=None, score_source=None, rmsd=None, near_native=None)
+    p2 = Pose(system_id="sys_reo", pose_id=0, ligand_mol=pb,
+              raw_score=None, score_source=None, rmsd=None, near_native=None)
+
+    out = annotate_rmsd([p1, p2], str(native_path))
+    ra = out[0].rmsd
+    rb = out[1].rmsd
+    assert ra is not None and rb is not None, "both poses must align to native"
+    assert abs(ra - rb) < 1e-6, f"atom reorder changed RMSD: {ra} vs {rb}"
+
+
 # ---- AC3: CLI emits valid JSON ------------------------------------------
 def test_ac3_cli_json(tmp_path):
     from dockconf.cli import main
@@ -110,36 +158,43 @@ def test_ac3_cli_json(tmp_path):
 
 # ---- AC4: P(near-native) per pose -------------------------------------
 def test_ac4_calibrated_p():
-    poses, train = make_fixture(seed=42, n_systems=20)
-    cal = calibrate(poses, mode="platt", train=train)
+    fx = make_fixture(seed=42, n_systems=20)
+    cal = calibrate(fx.test_poses, mode="platt", train=fx.train_poses)
     assert all(p.p_near_native is not None for p in cal)
     assert all(0.0 <= p.p_near_native <= 1.0 for p in cal)
 
 
 # ---- AC5: ECE scalar in [0,1] --------------------------------------
 def test_ac5_ece_scalar():
-    poses, train = make_fixture(seed=42, n_systems=20)
-    cal = calibrate(poses, mode="platt", train=train)
+    fx = make_fixture(seed=42, n_systems=20)
+    cal = calibrate(fx.test_poses, mode="platt", train=fx.train_poses)
     ece = expected_calibration_error(cal)
     assert ece is not None and 0.0 <= ece <= 1.0
 
 
 # ---- AC6: reliability diagram PNG non-empty ---------------------------
 def test_ac6_reliability_png(tmp_path):
-    poses, train = make_fixture(seed=42, n_systems=20)
-    cal = calibrate(poses, mode="platt", train=train)
+    fx = make_fixture(seed=42, n_systems=20)
+    cal = calibrate(fx.test_poses, mode="platt", train=fx.train_poses)
     png = tmp_path / "rel.png"
     path = reliability_diagram(cal, str(png))
     assert path is not None
     assert png.exists() and png.stat().st_size > 1024
 
 
-# ---- AC7: calibrated ECE < raw ECE (validation) --------------------
+# ---- AC7: calibrated ECE < raw ECE (validation) -------------------
 def test_ac7_ece_improvement():
-    poses, train = make_fixture(seed=42, n_systems=20)
-    cal = calibrate(poses, mode="platt", train=train)
+    fx = make_fixture(seed=42, n_systems=20)
+    # Regression guard: train and test are disjoint by system_id.
+    train_sys = {p.system_id for p in fx.train_poses}
+    test_sys = {p.system_id for p in fx.test_poses}
+    assert train_sys & test_sys == set(), (
+        f"data leakage: train/test share {sorted(train_sys & test_sys)}"
+    )
+    # Fit Platt on train, evaluate HONESTLY on the disjoint test holdout.
+    cal = calibrate(fx.test_poses, mode="platt", train=fx.train_poses)
     ece_cal = expected_calibration_error(cal)
-    ece_raw = raw_score_ece(poses)
+    ece_raw = raw_score_ece(fx.test_poses)
     assert ece_cal is not None and ece_raw is not None
     assert ece_cal < ece_raw, f"ECE not improved: {ece_cal} >= {ece_raw}"
 
