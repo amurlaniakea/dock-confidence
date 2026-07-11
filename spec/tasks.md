@@ -18,8 +18,8 @@ Cada task es atómica y verificable contra su AC. Formato: `[ID] módulo — ver
 ## Fase 3 — Reporte + CLI + validación (FR3, FR5, FR6, AC3, AC7, AC8)
 - [T10] `report.py`: `write_json(poses, out)` + `filter_decoys(poses, thr)` marca `is_decoy`. Verif AC8.
 - [T11] `cli.py`: subcomandos `parse/calibrate/validate/report`, flags `--native --format --out --threshold --dataset`. Verif AC3: `json.tool` válido.
-- [T12] `data/fixture.py`: genera dataset sintético controlado (semilla fija) con RMSD+score conocidos. Verif AC7/AC8.
-- [T13] `validate` sobre fixture: ECE_calibrado < ECE_crudo (AC7) y ≥1 decoy marcado (AC8).
+- [T12] `data/fixture.py`: genera dataset sintético controlado (semilla fija) con RMSD+score conocidos. Devuelve FixtureData(all_poses, train_poses, test_poses) con split POR SYSTEM_ID (0 overlap entre train/test); assert interno anti-leakage. Verif AC7/AC8.
+- [T13] `validate` sobre fixture: calibrar Platt SOBRE train, evaluar ECE_calibrado < ECE_crudo SOBRE test holdout (0 overlap) (AC7) y ≥1 decoy marcado (AC8).
 
 ## Fase 4 — Empaquetado profesional (SDD packaging)
 - [T14] `LICENSE` AGPL-3.0-or-later (año 2026, autor Pedro Sordo Martínez).

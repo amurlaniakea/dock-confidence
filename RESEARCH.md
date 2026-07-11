@@ -75,7 +75,8 @@ To validate on real data once downloaded:
 * Honesty note: the `heuristic` calibration mode is a documented
   fallback with higher ECE than `platt`; we report ECE honestly,
   never faked. The reproducible fixture proves the *calibration logic*
-  (platt: ECE 0.080 < raw 0.368) without depending on a blocked
+  (platt: ECE 0.109 < raw 0.386, evaluated on a 0-system-overlap
+  holdout) without depending on a blocked
   external tarball.
 
 ### Limitations
@@ -144,8 +145,9 @@ Validación con datos reales:
 * La validación ECE con dataset real (AC7 en CASF) queda pendiente.
 * Nota de honestidad: el modo `heuristic` es fallback documentado con
   ECE mayor que `platt`; reportamos ECE sin maquillar. El fixture
-  reproducible prueba la *lógica de calibración* (platt: ECE 0.080 <
-  crudo 0.368) sin depender de un tarball externo bloqueado.
+  reproducible prueba la *lógica de calibración* (platt: ECE 0.109 <
+  crudo 0.386, evaluado sobre holdout de 0 overlap de sistemas) sin
+  depender de un tarball externo bloqueado.
 
 ### Limitaciones
 

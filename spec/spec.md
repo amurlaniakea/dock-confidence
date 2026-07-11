@@ -64,7 +64,7 @@ es el ECE.
 | **AC4** | `P(RMSD<2Å)` se calcula para cada pose usando calibración sobre CASF-2016 | Reporte incluye `p_near_native` por pose |
 | **AC5** | El ECE se calcula con la fórmula §2.1 y da un escalar finito en [0,1] sobre CASF-2016 | stdout imprime `ECE = X.XX` |
 | **AC6** | El reliability diagram PNG se genera y no está vacío (>1KB) | `ls -la reliability.png` |
-| **AC7** | Sobre CASF-2016 (test split), el ECE del calibrador es **< 0.15** (mejor que sin calibrar) | stdout de validación: `ECE_calibrado < ECE_crudo` |
+| **AC7** | Sobre CASF-2016 (test split, **0 system overlap con train**), el ECE del calibrador es **< 0.15** (mejor que sin calibrar). El fixture lo demuestra con ECE_calibrado 0.109 < ECE_crudo 0.386 en holdout limpio | stdout de validación: `ECE_calibrado < ECE_crudo` + indicador HOLDOUT (0 overlap) |
 | **AC8** | El filtro de decoys con umbral por defecto marca ≥1 pose como decoy en un lote con decoys conocidos | JSON contiene `is_decoy=true` para las poses lejanas |
 
 ## 4. Requisitos no funcionales

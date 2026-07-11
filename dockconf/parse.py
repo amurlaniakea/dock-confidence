@@ -6,7 +6,7 @@ Reads DiffDock (.sdf multimodel), AutoDock-GPU/Smina (.sdf with
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from rdkit import Chem
@@ -152,7 +152,7 @@ def read_poses(path: str, fmt: Optional[str] = None,
     if fmt is None:
         if path.endswith(".sdf") or path.endswith(".mol2"):
             fmt = "sdf"
-        elif path.endswith(".pdbqt") or path.endswith(".pdbqt"):
+        elif path.endswith(".pdbqt"):
             fmt = "pdbqt"
         elif path.endswith(".dlg"):
             fmt = "dlg"
